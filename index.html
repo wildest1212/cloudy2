@@ -1,0 +1,38 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>cloud</title>
+    <link rel="preload" href="./fonts/Eagle-Bold.woff" as="font" type="font/woff" crossorigin />
+    <link rel="preload" href="./background.png" as="image" fetchpriority="high" />
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <main class="app-shell">
+      <section class="generator" aria-label="头像生成器">
+        <div class="preview-wrap">
+          <canvas id="avatarCanvas" width="512" height="512" aria-label="头像预览"></canvas>
+        </div>
+
+        <div class="controls">
+          <input
+            id="avatarText"
+            type="text"
+            value="TS"
+            placeholder="TYPE TEXT"
+            autocomplete="off"
+            spellcheck="false"
+            aria-label="输入头像文字"
+          />
+
+          <button id="downloadButton" type="button">下载头像</button>
+        </div>
+      </section>
+    </main>
+
+    <footer class="site-footer">By：Wildest</footer>
+
+    <script src="./script.js" defer></script>
+  </body>
+</html>
