@@ -21,6 +21,7 @@ const layoutConfig = {
   badgeMaxTextWidthRatio: 0.76,
   badgeTopOffsetRatio: 0.4,
   minFontSize: 18,
+  noBadgeCenterYRatio: 0.5,
   topLogoCenterYRatio: 0.392,
   topMaxWidthRatio: 0.96,
 };
@@ -111,7 +112,11 @@ function getTopLogoCenterY() {
   return canvas.height * layoutConfig.topLogoCenterYRatio;
 }
 
-function getTopLogoLayout(text, fontSize, fontFamily) {
+function getNoBadgeCenterY() {
+  return canvas.height * layoutConfig.noBadgeCenterYRatio;
+}
+
+function getTopLogoLayout(text, fontSize, fontFamily, centerY = getTopLogoCenterY()) {
   const letters = Array.from(text).map((character, index) => {
     const size = fontSize * getPatternValue(topLetterPattern.scales, index);
     const width = measureTextWidth(character, size, fontFamily);
@@ -135,7 +140,6 @@ function getTopLogoLayout(text, fontSize, fontFamily) {
 
   const totalWidth = letters.reduce((sum, letter, index) => sum + (index === 0 ? letter.width : advances[index - 1]), 0);
   let cursorX = (canvas.width - totalWidth) / 2 + letters[0].width / 2;
-  const centerY = getTopLogoCenterY();
 
   return letters.map((letter, index) => {
     const positionedLetter = {
@@ -175,14 +179,14 @@ function getTopLayoutBounds(layout) {
   };
 }
 
-function fitTopFontSize(text, fontFamily) {
+function fitTopFontSize(text, fontFamily, centerY = getTopLogoCenterY()) {
   let fontSize = getTopBaseFontSize(text);
-  let layout = getTopLogoLayout(text, fontSize, fontFamily);
+  let layout = getTopLogoLayout(text, fontSize, fontFamily, centerY);
   let bounds = getTopLayoutBounds(layout);
 
   while (fontSize > layoutConfig.minFontSize && bounds.right - bounds.left > canvas.width * layoutConfig.topMaxWidthRatio) {
     fontSize -= 2;
-    layout = getTopLogoLayout(text, fontSize, fontFamily);
+    layout = getTopLogoLayout(text, fontSize, fontFamily, centerY);
     bounds = getTopLayoutBounds(layout);
   }
 
@@ -312,13 +316,15 @@ function drawAvatar() {
   const topText = normalizeDisplayText(avatarText.value, "TAYLOR");
   const badgeTextValue = normalizeDisplayText(badgeText.value, "SWIFT");
   const topFontFamily = getTopFontFamily(topText);
-  const topFontSize = fitTopFontSize(topText, topFontFamily);
-  const topLayout = getTopLogoLayout(topText, topFontSize, topFontFamily);
+  const hasBadge = badgeToggle.checked;
+  const topCenterY = hasBadge ? getTopLogoCenterY() : getNoBadgeCenterY();
+  const topFontSize = fitTopFontSize(topText, topFontFamily, topCenterY);
+  const topLayout = getTopLogoLayout(topText, topFontSize, topFontFamily, topCenterY);
 
   context.clearRect(0, 0, canvas.width, canvas.height);
   drawBackground();
 
-  if (badgeToggle.checked) {
+  if (hasBadge) {
     drawBadge(badgeTextValue, topFontSize);
   }
 
