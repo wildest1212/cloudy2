@@ -1,74 +1,217 @@
 const canvas = document.querySelector("#avatarCanvas");
 const context = canvas.getContext("2d");
 const avatarText = document.querySelector("#avatarText");
+const badgeText = document.querySelector("#badgeText");
 const downloadButton = document.querySelector("#downloadButton");
 
-const textFillColor = "#e8d431";
-const textStrokeColor = "#123772";
-const backgroundImagePath = "./background.png";
-const maxTextWidthRatio = 0.82;
-const minFontSize = 18;
-const englishFontFamily = '"Eagle Bold", Impact, "Arial Black", sans-serif';
-const chineseFontFamily = '"PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif';
-const backgroundImage = new Image();
+const colors = {
+  badgeBackground: "#d90428",
+  textFill: "#e8d431",
+  textStroke: "#123772",
+};
 
+const fonts = {
+  badgeLatin: '"Gill Sans Ultra Bold", "Gill Sans", "Eagle Bold", Impact, "Arial Black", sans-serif',
+  chinese: '"Source Han Sans SC Heavy", "Source Han Sans SC", "Microsoft YaHei", sans-serif',
+  latin: '"Eagle Bold", Impact, "Arial Black", sans-serif',
+};
+
+const layoutConfig = {
+  badgeMaxTextWidthRatio: 0.76,
+  badgeTopOffsetRatio: 0.4,
+  minFontSize: 18,
+  topLogoCenterYRatio: 0.392,
+  topMaxWidthRatio: 0.96,
+};
+
+const topLetterPattern = {
+  rotations: [-7, -2, 5, 0, 3, 7, -4, 4],
+  scales: [1.22, 0.94, 1.14, 1.02, 1.04, 1.2, 1.05, 0.98],
+  yOffsets: [5, 14, 2, 11, 9, 0, 8, 4],
+};
+
+const backgroundImage = new Image();
 backgroundImage.addEventListener("load", drawAvatar);
 backgroundImage.addEventListener("error", drawAvatar);
-backgroundImage.src = backgroundImagePath;
+backgroundImage.src = "./background.png";
 
-function getDisplayText(value) {
-  return value.trim() || "TS";
+function containsChinese(text) {
+  return /[\u3400-\u9fff\uf900-\ufaff]/.test(text);
 }
 
-function getFontFamily(text) {
-  return /[\u3400-\u9fff\uf900-\ufaff]/.test(text) ? chineseFontFamily : englishFontFamily;
+function normalizeDisplayText(value, fallback) {
+  const text = value.trim() || fallback;
+  return containsChinese(text) ? text : text.toLocaleUpperCase("en-US");
 }
 
-function getBaseFontSize(text) {
+function uppercaseLatinInput(input) {
+  if (containsChinese(input.value)) return;
+
+  const upperValue = input.value.toLocaleUpperCase("en-US");
+
+  if (input.value !== upperValue) {
+    const selectionStart = input.selectionStart;
+    const selectionEnd = input.selectionEnd;
+    input.value = upperValue;
+    input.setSelectionRange(selectionStart, selectionEnd);
+  }
+}
+
+function getTopFontFamily(text) {
+  return containsChinese(text) ? fonts.chinese : fonts.latin;
+}
+
+function getBadgeFontFamily(text) {
+  return containsChinese(text) ? fonts.chinese : fonts.badgeLatin;
+}
+
+function getTopBaseFontSize(text) {
   const length = Array.from(text).length;
 
-  if (length <= 1) return 224;
-  if (length === 2) return 188;
-  if (length === 3) return 148;
-  if (length === 4) return 118;
-  if (length <= 6) return 92;
-  if (length <= 10) return 68;
-  if (length <= 16) return 54;
-  return 42;
+  if (length <= 1) return 220;
+  if (length === 2) return 190;
+  if (length === 3) return 162;
+  if (length === 4) return 142;
+  if (length <= 6) return 124;
+  if (length <= 8) return 104;
+  if (length <= 12) return 82;
+  if (length <= 16) return 64;
+  return 48;
 }
 
-function getCharacterRotation(index) {
-  return (index % 2 === 0 ? -4 : 4) * (Math.PI / 180);
+function getBadgeBaseFontSize(text) {
+  const length = Array.from(text).length;
+
+  if (length <= 2) return 104;
+  if (length <= 4) return 86;
+  if (length <= 6) return 72;
+  if (length <= 10) return 54;
+  return 40;
 }
 
-function getCharacterSpacing(fontSize) {
-  return Math.min(-2, -fontSize * 0.03);
-}
-
-function measureTextLayout(text, fontSize, fontFamily) {
-  const characters = Array.from(text);
-  const spacing = getCharacterSpacing(fontSize);
-
+function withCanvasFont(fontSize, fontFamily, callback) {
   context.save();
   context.font = `900 ${fontSize}px ${fontFamily}`;
-
-  const widths = characters.map((character) => context.measureText(character).width);
-  const totalWidth = widths.reduce((sum, width) => sum + width, 0) + spacing * Math.max(0, characters.length - 1);
-
+  const result = callback();
   context.restore();
 
-  return { characters, widths, spacing, totalWidth };
+  return result;
 }
 
-function getFittedFontSize(text, fontFamily) {
-  const maxWidth = canvas.width * maxTextWidthRatio;
-  let fontSize = getBaseFontSize(text);
+function measureTextWidth(text, fontSize, fontFamily) {
+  return withCanvasFont(fontSize, fontFamily, () => context.measureText(text).width);
+}
 
-  while (fontSize > minFontSize && measureTextLayout(text, fontSize, fontFamily).totalWidth > maxWidth) {
+function getPatternValue(values, index) {
+  return values[index % values.length];
+}
+
+function getTopLogoCenterY() {
+  return canvas.height * layoutConfig.topLogoCenterYRatio;
+}
+
+function getTopLogoLayout(text, fontSize, fontFamily) {
+  const letters = Array.from(text).map((character, index) => {
+    const size = fontSize * getPatternValue(topLetterPattern.scales, index);
+    const width = measureTextWidth(character, size, fontFamily);
+
+    return {
+      character,
+      rotation: getPatternValue(topLetterPattern.rotations, index) * (Math.PI / 180),
+      size,
+      width,
+      yOffset: getPatternValue(topLetterPattern.yOffsets, index),
+    };
+  });
+
+  const advances = letters.map((letter, index) => {
+    const next = letters[index + 1];
+    if (!next) return 0;
+
+    const overlap = Math.min(letter.width, next.width) * 0.24;
+    return letter.width * 0.5 + next.width * 0.5 - overlap;
+  });
+
+  const totalWidth = letters.reduce((sum, letter, index) => sum + (index === 0 ? letter.width : advances[index - 1]), 0);
+  let cursorX = (canvas.width - totalWidth) / 2 + letters[0].width / 2;
+  const centerY = getTopLogoCenterY();
+
+  return letters.map((letter, index) => {
+    const positionedLetter = {
+      ...letter,
+      x: cursorX,
+      y: centerY + letter.yOffset,
+    };
+
+    cursorX += advances[index] || 0;
+    return positionedLetter;
+  });
+}
+
+function getTopLayoutBounds(layout) {
+  const strokePadding = canvas.width * 0.025;
+  const bounds = layout.map((letter) => {
+    const halfWidth = letter.width * 0.62 + strokePadding;
+    const halfHeight = letter.size * 0.58 + strokePadding;
+    const sin = Math.abs(Math.sin(letter.rotation));
+    const cos = Math.abs(Math.cos(letter.rotation));
+    const rotatedHalfWidth = halfWidth * cos + halfHeight * sin;
+    const rotatedHalfHeight = halfWidth * sin + halfHeight * cos;
+
+    return {
+      bottom: letter.y + rotatedHalfHeight,
+      left: letter.x - rotatedHalfWidth,
+      right: letter.x + rotatedHalfWidth,
+      top: letter.y - rotatedHalfHeight,
+    };
+  });
+
+  return {
+    bottom: Math.max(...bounds.map((bound) => bound.bottom)),
+    left: Math.min(...bounds.map((bound) => bound.left)),
+    right: Math.max(...bounds.map((bound) => bound.right)),
+    top: Math.min(...bounds.map((bound) => bound.top)),
+  };
+}
+
+function fitTopFontSize(text, fontFamily) {
+  let fontSize = getTopBaseFontSize(text);
+  let layout = getTopLogoLayout(text, fontSize, fontFamily);
+  let bounds = getTopLayoutBounds(layout);
+
+  while (fontSize > layoutConfig.minFontSize && bounds.right - bounds.left > canvas.width * layoutConfig.topMaxWidthRatio) {
+    fontSize -= 2;
+    layout = getTopLogoLayout(text, fontSize, fontFamily);
+    bounds = getTopLayoutBounds(layout);
+  }
+
+  return fontSize;
+}
+
+function fitBadgeFontSize(text, fontFamily) {
+  const maxWidth = canvas.width * layoutConfig.badgeMaxTextWidthRatio;
+  let fontSize = getBadgeBaseFontSize(text);
+
+  while (fontSize > layoutConfig.minFontSize && measureTextWidth(text, fontSize, fontFamily) > maxWidth) {
     fontSize -= 2;
   }
 
   return fontSize;
+}
+
+function getBadgeLayout(text, fontSize, fontFamily, topFontSize) {
+  const textWidth = measureTextWidth(text, fontSize, fontFamily);
+  const horizontalPadding = Math.max(canvas.width * 0.075, fontSize * 0.78);
+  const boardWidth = Math.min(canvas.width * 0.92, Math.max(canvas.width * 0.5, textWidth + horizontalPadding * 2));
+  const boardHeight = Math.min(canvas.height * 0.25, Math.max(canvas.height * 0.17, fontSize * 1.62));
+  const centerX = canvas.width * 0.51;
+  const topY = getTopLogoCenterY() + topFontSize * layoutConfig.badgeTopOffsetRatio;
+  const bottomY = topY + boardHeight;
+  const centerY = topY + boardHeight * 0.54;
+  const leftX = centerX - boardWidth / 2;
+  const rightX = centerX + boardWidth / 2;
+
+  return { boardHeight, boardWidth, bottomY, centerX, centerY, leftX, rightX, topY };
 }
 
 function drawImageCover(image) {
@@ -87,74 +230,111 @@ function drawImageCover(image) {
   context.drawImage(image, 0, sourceY, image.width, sourceHeight, 0, 0, canvas.width, canvas.height);
 }
 
-function drawMissingBackgroundFallback() {
-  context.fillStyle = "#d7e7f7";
-  context.fillRect(0, 0, canvas.width, canvas.height);
-}
-
 function drawBackground() {
   if (backgroundImage.complete && backgroundImage.naturalWidth > 0) {
     drawImageCover(backgroundImage);
     return;
   }
 
-  drawMissingBackgroundFallback();
+  context.fillStyle = "#d7e7f7";
+  context.fillRect(0, 0, canvas.width, canvas.height);
 }
 
-function drawPlayfulText(text, fontSize, fontFamily) {
-  const { characters, widths, spacing, totalWidth } = measureTextLayout(text, fontSize, fontFamily);
-  let cursorX = (canvas.width - totalWidth) / 2;
-  const centerY = canvas.height / 2 + 6;
+function drawTopLogoText(layout, fontFamily) {
+  layout.forEach((letter) => {
+    context.save();
+    context.translate(letter.x, letter.y);
+    context.rotate(letter.rotation);
+    context.textAlign = "center";
+    context.textBaseline = "middle";
+    context.lineJoin = "round";
+    context.miterLimit = 2;
+    context.font = `900 ${letter.size}px ${fontFamily}`;
+    context.strokeStyle = colors.textStroke;
+    context.lineWidth = Math.max(11, Math.round(letter.size * 0.13));
+    context.fillStyle = colors.textFill;
+    context.shadowColor = "rgba(18, 55, 114, 0.22)";
+    context.shadowBlur = 7;
+    context.shadowOffsetX = 3;
+    context.shadowOffsetY = 4;
+    context.strokeText(letter.character, 0, 0);
+    context.fillText(letter.character, 0, 0);
+    context.restore();
+  });
+}
 
+function drawBadgeBackground(layout) {
+  const skew = layout.boardWidth * 0.035;
+  const lift = layout.boardHeight * 0.08;
+
+  context.save();
+  context.fillStyle = colors.badgeBackground;
+  context.shadowColor = "rgba(18, 55, 114, 0.14)";
+  context.shadowBlur = 5;
+  context.shadowOffsetX = 2;
+  context.shadowOffsetY = 3;
+  context.beginPath();
+  context.moveTo(layout.leftX + skew, layout.topY + lift);
+  context.lineTo(layout.rightX - skew * 1.25, layout.topY);
+  context.lineTo(layout.rightX, layout.bottomY - lift * 0.65);
+  context.lineTo(layout.leftX, layout.bottomY);
+  context.closePath();
+  context.fill();
+  context.restore();
+}
+
+function drawBadgeText(text, fontSize, fontFamily, layout) {
   context.save();
   context.textAlign = "center";
   context.textBaseline = "middle";
   context.lineJoin = "round";
   context.miterLimit = 2;
   context.font = `900 ${fontSize}px ${fontFamily}`;
-  context.strokeStyle = textStrokeColor;
-  context.lineWidth = Math.max(8, Math.round(fontSize * 0.11));
-  context.fillStyle = textFillColor;
-  context.shadowColor = "rgba(18, 55, 114, 0.18)";
-  context.shadowBlur = 6;
-  context.shadowOffsetY = 3;
-
-  characters.forEach((character, index) => {
-    const characterCenterX = cursorX + widths[index] / 2;
-
-    context.save();
-    context.translate(characterCenterX, centerY);
-    context.rotate(getCharacterRotation(index));
-    context.strokeText(character, 0, 0);
-    context.fillText(character, 0, 0);
-    context.restore();
-
-    cursorX += widths[index] + spacing;
-  });
-
+  context.fillStyle = colors.textFill;
+  context.shadowColor = "rgba(0, 0, 0, 0.12)";
+  context.shadowBlur = 3;
+  context.shadowOffsetY = 2;
+  context.fillText(text, layout.centerX, layout.centerY + layout.boardHeight * 0.03);
   context.restore();
 }
 
 function drawAvatar() {
-  const text = getDisplayText(avatarText.value);
-  const fontFamily = getFontFamily(text);
-  const fontSize = getFittedFontSize(text, fontFamily);
+  const topText = normalizeDisplayText(avatarText.value, "TAYLOR");
+  const badgeTextValue = normalizeDisplayText(badgeText.value, "SWIFT");
+  const topFontFamily = getTopFontFamily(topText);
+  const badgeFontFamilyValue = getBadgeFontFamily(badgeTextValue);
+  const topFontSize = fitTopFontSize(topText, topFontFamily);
+  const topLayout = getTopLogoLayout(topText, topFontSize, topFontFamily);
+  const badgeFontSize = fitBadgeFontSize(badgeTextValue, badgeFontFamilyValue);
+  const badgeLayout = getBadgeLayout(badgeTextValue, badgeFontSize, badgeFontFamilyValue, topFontSize);
 
   context.clearRect(0, 0, canvas.width, canvas.height);
   drawBackground();
-  drawPlayfulText(text, fontSize, fontFamily);
+  drawBadgeBackground(badgeLayout);
+  drawTopLogoText(topLayout, topFontFamily);
+  drawBadgeText(badgeTextValue, badgeFontSize, badgeFontFamilyValue, badgeLayout);
 }
 
 function downloadAvatar() {
+  const topName = normalizeDisplayText(avatarText.value, "TAYLOR");
+  const badgeName = normalizeDisplayText(badgeText.value, "SWIFT");
+  const safeName = `${topName}-${badgeName}`.replace(/[\\/:*?"<>|\s]+/g, "-");
   const link = document.createElement("a");
-  const safeName = (avatarText.value.trim() || "TS").replace(/[\\/:*?"<>|\s]+/g, "-");
 
   link.download = `${safeName}-avatar.png`;
   link.href = canvas.toDataURL("image/png");
   link.click();
 }
 
-avatarText.addEventListener("input", drawAvatar);
+function handleTextInput(event) {
+  uppercaseLatinInput(event.currentTarget);
+  drawAvatar();
+}
+
+uppercaseLatinInput(avatarText);
+uppercaseLatinInput(badgeText);
+avatarText.addEventListener("input", handleTextInput);
+badgeText.addEventListener("input", handleTextInput);
 downloadButton.addEventListener("click", downloadAvatar);
 document.fonts.ready.then(drawAvatar);
 

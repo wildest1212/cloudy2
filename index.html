@@ -5,6 +5,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>cloud</title>
     <link rel="preload" href="./fonts/Eagle-Bold.woff" as="font" type="font/woff" crossorigin />
+    <link rel="preload" href="./fonts/Gill-Sans-Ultra-Bold.woff" as="font" type="font/woff" crossorigin />
+    <link rel="preload" href="./fonts/SourceHanSansSC-Heavy.otf" as="font" type="font/otf" crossorigin />
     <link rel="preload" href="./background.png" as="image" fetchpriority="high" />
     <link rel="stylesheet" href="./styles.css" />
   </head>
@@ -19,11 +21,21 @@
           <input
             id="avatarText"
             type="text"
-            value="TS"
-            placeholder="TYPE TEXT"
+            value="TAYLOR"
+            placeholder="上方文字"
             autocomplete="off"
             spellcheck="false"
-            aria-label="输入头像文字"
+            aria-label="输入上方头像文字"
+          />
+
+          <input
+            id="badgeText"
+            type="text"
+            value="SWIFT"
+            placeholder="下方红框文字"
+            autocomplete="off"
+            spellcheck="false"
+            aria-label="输入下方红框文字"
           />
 
           <button id="downloadButton" type="button">下载头像</button>
