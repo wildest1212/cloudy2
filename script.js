@@ -2,6 +2,7 @@ const canvas = document.querySelector("#avatarCanvas");
 const context = canvas.getContext("2d");
 const avatarText = document.querySelector("#avatarText");
 const badgeText = document.querySelector("#badgeText");
+const badgeToggle = document.querySelector("#badgeToggle");
 const downloadButton = document.querySelector("#downloadButton");
 
 const colors = {
@@ -298,27 +299,37 @@ function drawBadgeText(text, fontSize, fontFamily, layout) {
   context.restore();
 }
 
+function drawBadge(text, topFontSize) {
+  const fontFamily = getBadgeFontFamily(text);
+  const fontSize = fitBadgeFontSize(text, fontFamily);
+  const layout = getBadgeLayout(text, fontSize, fontFamily, topFontSize);
+
+  drawBadgeBackground(layout);
+  drawBadgeText(text, fontSize, fontFamily, layout);
+}
+
 function drawAvatar() {
   const topText = normalizeDisplayText(avatarText.value, "TAYLOR");
   const badgeTextValue = normalizeDisplayText(badgeText.value, "SWIFT");
   const topFontFamily = getTopFontFamily(topText);
-  const badgeFontFamilyValue = getBadgeFontFamily(badgeTextValue);
   const topFontSize = fitTopFontSize(topText, topFontFamily);
   const topLayout = getTopLogoLayout(topText, topFontSize, topFontFamily);
-  const badgeFontSize = fitBadgeFontSize(badgeTextValue, badgeFontFamilyValue);
-  const badgeLayout = getBadgeLayout(badgeTextValue, badgeFontSize, badgeFontFamilyValue, topFontSize);
 
   context.clearRect(0, 0, canvas.width, canvas.height);
   drawBackground();
-  drawBadgeBackground(badgeLayout);
+
+  if (badgeToggle.checked) {
+    drawBadge(badgeTextValue, topFontSize);
+  }
+
   drawTopLogoText(topLayout, topFontFamily);
-  drawBadgeText(badgeTextValue, badgeFontSize, badgeFontFamilyValue, badgeLayout);
 }
 
 function downloadAvatar() {
   const topName = normalizeDisplayText(avatarText.value, "TAYLOR");
   const badgeName = normalizeDisplayText(badgeText.value, "SWIFT");
-  const safeName = `${topName}-${badgeName}`.replace(/[\\/:*?"<>|\s]+/g, "-");
+  const variant = badgeToggle.checked ? badgeName : "NO-BADGE";
+  const safeName = `${topName}-${variant}`.replace(/[\\/:*?"<>|\s]+/g, "-");
   const link = document.createElement("a");
 
   link.download = `${safeName}-avatar.png`;
@@ -335,6 +346,7 @@ uppercaseLatinInput(avatarText);
 uppercaseLatinInput(badgeText);
 avatarText.addEventListener("input", handleTextInput);
 badgeText.addEventListener("input", handleTextInput);
+badgeToggle.addEventListener("change", drawAvatar);
 downloadButton.addEventListener("click", downloadAvatar);
 document.fonts.ready.then(drawAvatar);
 

@@ -102,6 +102,25 @@ input[type="text"]::placeholder {
   color: #9a9a9a;
 }
 
+.option-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 44px;
+  padding: 0 2px;
+  color: #111111;
+  font-size: 15px;
+  font-weight: 700;
+  user-select: none;
+}
+
+.option-row input[type="checkbox"] {
+  width: 22px;
+  height: 22px;
+  margin: 0;
+  accent-color: #d90428;
+}
+
 button {
   width: 100%;
   min-height: 48px;
@@ -133,6 +152,11 @@ button {
     min-height: 52px;
     padding: 10px 12px;
     font-size: 22px;
+  }
+
+  .option-row {
+    min-height: 40px;
+    font-size: 14px;
   }
 
   button {
