@@ -11,10 +11,22 @@ const colors = {
   textStroke: "#123772",
 };
 
+const fontFamilies = {
+  badgeLatin: "Gill Sans Ultra Bold",
+  chinese: "ToyLogoSourceHanSansSCHeavy",
+  latin: "ToyLogoEagleBold",
+};
+
+const fontSources = [
+  { family: fontFamilies.latin, source: "url(./fonts/Eagle-Bold.woff)", descriptors: { weight: "700" } },
+  { family: fontFamilies.badgeLatin, source: "url(./fonts/Gill-Sans-Ultra-Bold.ttf)", descriptors: { weight: "900" } },
+  { family: fontFamilies.chinese, source: "url(./fonts/SourceHanSansSC-Heavy.otf)", descriptors: { weight: "900" } },
+];
+
 const fonts = {
-  badgeLatin: '"Gill Sans Ultra Bold", "Gill Sans", "Eagle Bold", Impact, "Arial Black", sans-serif',
-  chinese: '"Source Han Sans SC Heavy", "Source Han Sans SC", "Microsoft YaHei", sans-serif',
-  latin: '"Eagle Bold", Impact, "Arial Black", sans-serif',
+  badgeLatin: `"${fontFamilies.badgeLatin}"`,
+  chinese: `"${fontFamilies.chinese}"`,
+  latin: `"${fontFamilies.latin}"`,
 };
 
 const layoutConfig = {
@@ -36,6 +48,20 @@ const backgroundImage = new Image();
 backgroundImage.addEventListener("load", drawAvatar);
 backgroundImage.addEventListener("error", drawAvatar);
 backgroundImage.src = "./background.png";
+
+function loadBundledFonts() {
+  if (!("FontFace" in window) || !document.fonts) {
+    return document.fonts?.ready || Promise.resolve();
+  }
+
+  const loadTasks = fontSources.map(({ descriptors, family, source }) => {
+    const fontFace = new FontFace(family, source, descriptors);
+    document.fonts.add(fontFace);
+    return fontFace.load();
+  });
+
+  return Promise.all(loadTasks).then(() => document.fonts.ready);
+}
 
 function containsChinese(text) {
   return /[\u3400-\u9fff\uf900-\ufaff]/.test(text);
@@ -354,6 +380,6 @@ avatarText.addEventListener("input", handleTextInput);
 badgeText.addEventListener("input", handleTextInput);
 badgeToggle.addEventListener("change", drawAvatar);
 downloadButton.addEventListener("click", downloadAvatar);
-document.fonts.ready.then(drawAvatar);
+loadBundledFonts().then(drawAvatar).catch(drawAvatar);
 
 drawAvatar();
